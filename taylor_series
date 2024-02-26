@@ -1,0 +1,419 @@
+.text
+sin:	  	
+	
+#declaracion de variables
+	fmv.s ft0 fa0						# fa0 = x y lo movemos a ft0 = fa0										
+	li t1 15							# limite contador
+    li t0 0								# contador
+    fcvt.s.w ft1 t0						# resultado final	ft = final
+    
+
+bucle_principal_seno:
+	beq t0 t1 fin_bucle_principal_seno
+    
+#llamada a calculo de signo
+	addi sp sp -8
+    sw ra 0(sp)							#guardamos la direccion del seno
+    fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    
+    
+	jal ra signo_seno
+    fmv.s ft2 fa0						# ft2 es el signo	ft2 = (-1)^n
+	
+    
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 8
+    
+    
+    
+#llamada a calculo factorial
+	addi sp sp -12
+    sw ra 0(sp)							#guardamos la direccion del seno
+  	fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    fsw ft2 8(sp)						#guardamos el valor del signo
+    
+    
+	jal ra factorial_seno
+	fmv.s ft3 fa0						#ft3 = (2n + 1)!
+    
+    
+    flw ft2 8(sp)						#recuperamos el valor del signo
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 12
+	
+  
+#llamada a calculo exponente
+    addi sp sp -16
+    sw ra 0(sp)							#guardamos la direccion del seno
+    fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    fsw ft2 8(sp)						#guardamos el valor del signo
+    fsw ft3 12(sp)						#guardamos el valor del factorial
+    
+  
+	jal ra exponente_seno
+	fmv.s ft4 fa0						#ft4 = x^(2n + 1)
+    
+    
+    flw ft3 12(sp)						#recuperamos el valor del factorial
+    flw ft2 8(sp)						#recuperamos el valor del signo
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 16
+
+#calc sumatorio
+	
+	fmul.s ft5 ft4 ft2					#multiplicamos el signo por el exponenete y guardamos en ft5 = ft4 * ft2
+	fdiv.s ft5 ft5 ft3					#dividimos dicha multiuplicacion entre el factoril ft5 = ft5 / ft3
+	fadd.s ft1 ft1 ft5					#y se lo añadimos al resultado final ft1 += ft5
+    addi t0 t0 1						#sumamos uno al contador
+	
+	j bucle_principal_seno				#volvemos al inicio del buclepara empezar de nuevo
+
+    
+fin_bucle_principal_seno:				#n ha llegado a su fin
+	fmv.s fa0 ft1						#y guardamos el resultado final en fa0 para retornarlo
+        
+    jr ra								#y acabamos la funcion
+	
+#calculo exponente_seno	
+
+exponente_seno:
+	
+#declaracion de variables
+    
+    #calculo 2n + 1
+	li t3 2								#establecemos t2 = 2
+	mul t4 t3 t0						#multiplicamos 2 * n --> t4 = t3 * t2
+    addi t4 t4 1						#y le sumamos 1 --> t4 += 1
+	
+	li t5 0								#inicio contador
+	li t6 1								
+	fcvt.s.w ft5 t6						#establecemos ft5 = 1
+	
+b_seno_exp:	
+	beq t5 t4 fin_seno_exp				# ejecutamos el bucle del exponente mientras el contador no sea igual que la variable (2n+1)
+	fmul.s ft5 ft5 ft0					#multiplicamos ft5 (que en la primera accion del grupo es 1) por ft0 (que es x)
+	addi t5 t5 1						#le sumamos 1 al contador
+    j b_seno_exp						#volvemos a iniciar el bucle
+	
+fin_seno_exp:
+	fmv.s fa0 ft5						#pasamos el resulatdo final de exponente a fa0 para devolverlo
+	jr ra								#acabamos la subrutina exponente
+	
+
+#calculo factorial_seno
+
+factorial_seno:
+	
+#declaracion de variables
+
+	#calculo 2n + 1
+	li t3 2								#establecemos t2 = 2
+	mul t4 t3 t0						#multiplicamos 2 * n --> t4 = t3 * t2
+    addi t4 t4 1						#y le sumamos 1 --> t4 += 1
+	fcvt.s.w ft5 t4
+	
+	li t5 0								#inicio contador
+	li t6 1								#inico factorial, lo inicializamos a 1 y lo convertimos en flotante
+	fcvt.s.w ft6 t6
+	li t2 -1							#numero para restar y lo convertimos en flotante
+	fcvt.s.w ft2 t2
+	
+	beq t0 x0 fin_seno_fact				#El factorial de 0 y 1 es 1 entonces hacemos una excepcion para no tener errores ya que siempre es uno y no hace falta calcular nada
+
+	
+b_seno_fact:							
+	beq t5 t4 fin_seno_fact				#mientras que el contador no sea igual a (2n+1)
+	fmul.s ft6 ft6 ft5					#multiplicamos el factorial por el siguiente numero
+	fadd.s ft5 ft5 ft2					#sumamos uno al contador de la multiplicacion
+    addi t5 t5 1						#sumamos 1 al contador
+	j b_seno_fact						#volvemos a iniciar el bucle
+	
+fin_seno_fact:
+	fmv.s fa0 ft6						#pasamos el resulatdo final de exponente a fa0 para devolverlo
+	jr ra								#acabamos la subrutina factorial
+    
+#calculo de signo
+
+signo_seno:
+
+    li t2 2								#declarmos t2 como 2 para comprobar si es par o impar mediante la division y obteniendo el resto, si es 0 es para y si no impara
+    li t3 1								# y t3 como 1 ya que si es impar se queda asi el resultado
+	bgt t0 t1 bucle_principal_seno		#comprobamos que el contador aun siga siendo menor que el limite del bucle
+	rem t5 t0 t2 						#obtenemos el resto en t5
+	beq t5 x0 fin_signo_seno			#si t5 es 0 se queda t3 como esta sino se cambia
+	li t3 -1							# se cambia t2=-1
+	
+fin_signo_seno:
+	fcvt.s.w fa0 t3						#covertimos t3 a flotante y y lo dejamos en fa0 para retornarlo
+    jr ra								#acabamos la subrutina signo
+				
+
+cos:	  	
+	
+#declaracion de variables
+	fmv.s ft0 fa0						# fa0 = x y lo movemos a ft0 = fa0										
+	li t1 15							# limite contador
+    li t0 0								# contador
+    fcvt.s.w ft1 t0						# resultado final	ft = final
+    
+bucle_principal_cos:
+	beq t0 t1 fin_bucle_principal_cos
+    
+#llamada a calculo de signo
+	addi sp sp -8
+    sw ra 0(sp)							#guardamos la direccion del seno
+    fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    
+	jal ra signo_cos
+    fmv.s ft2 fa0						# ft2 es el signo	ft2 = (-1)^n
+	
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 8
+    
+#llamada a calculo factorial
+	addi sp sp -12
+    sw ra 0(sp)							#guardamos la direccion del seno
+  	fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    fsw ft2 8(sp)						#guardamos el valor del signo
+    
+	jal ra factorial_cos
+	fmv.s ft3 fa0						#ft3 = (2n + 1)!
+    
+    flw ft2 8(sp)						#recuperamos el valor del signo
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 12
+	
+#llamada a calculo exponente
+    addi sp sp -16
+    sw ra 0(sp)							#guardamos la direccion del seno
+    fsw ft0 4(sp)						#guardamos el valor ft0 = x para las siguientes subrutinas
+    fsw ft2 8(sp)						#guardamos el valor del signo
+    fsw ft3 12(sp)						#guardamos el valor del factorial
+  
+	jal ra exponente_cos
+	fmv.s ft4 fa0						#ft4 = x^(2n + 1)
+    
+    flw ft3 12(sp)						#recuperamos el valor del factorial
+    flw ft2 8(sp)						#recuperamos el valor del signo
+    flw ft0 4(sp)						#recuperamos el valor ft0 = x para las siguientes subrutinas
+    lw ra 0(sp)							#recuperamos la direccion del seno
+    addi sp sp 16
+
+#calc sumatorio
+	
+	fmul.s ft5 ft4 ft2					#multiplicamos el signo por el exponenete y guardamos en ft5 = ft4 * ft2
+	fdiv.s ft5 ft5 ft3					#dividimos dicha multiuplicacion entre el factoril ft5 = ft5 / ft3
+	fadd.s ft1 ft1 ft5					#y se lo añadimos al resultado final ft1 += ft5
+    addi t0 t0 1						#sumamos uno al contador
+	
+	j bucle_principal_cos				#volvemos al inicio del buclepara empezar de nuevo
+    
+fin_bucle_principal_cos:				#n ha llegado a su fin
+	fmv.s fa0 ft1						#y guardamos el resultado final en fa0 para retornarlo
+    jr ra								#y acabamos la funcion
+	
+#calculo exponente_cos	
+
+exponente_cos:
+	
+#declaracion de variables
+    
+    #calculo 2n
+	li t3 2								#establecemos t2 = 2
+	mul t4 t3 t0						#multiplicamos 2 * n --> t4 = t3 * t2
+	
+	li t5 0								#inicio contador
+	li t6 1								
+	fcvt.s.w ft5 t6						#establecemos ft5 = 1
+	
+b_cos_exp:	
+	beq t5 t4 fin_cos_exp				# ejecutamos el bucle del exponente mientras el contador no sea igual que la variable (2n+1)
+	fmul.s ft5 ft5 ft0					#multiplicamos ft5 (que en la primera accion del grupo es 1) por ft0 (que es x)
+	addi t5 t5 1						#le sumamos 1 al contador
+    j b_cos_exp							#volvemos a iniciar el bucle
+	
+fin_cos_exp:
+	fmv.s fa0 ft5						#pasamos el resulatdo final de exponente a fa0 para devolverlo
+	jr ra								#acabamos la subrutina exponente
+	
+
+#calculo factorial_cos
+
+factorial_cos:
+	
+#declaracion de variables
+
+	#calculo 2n
+	li t3 2								#establecemos t2 = 2
+	mul t4 t3 t0						#multiplicamos 2 * n --> t4 = t3 * t2
+	fcvt.s.w ft5 t4
+	
+	li t5 0								#inicio contador
+	li t6 1								#inico factorial, lo inicializamos a 1 y lo convertimos en flotante
+	fcvt.s.w ft6 t6
+	li t2 -1							#numero para restar y lo convertimos en flotante
+	fcvt.s.w ft2 t2
+	
+	beq t0 x0 fin_cos_fact				#El factorial de 0 y 1 es 1 entonces hacemos una excepcion para no tener errores ya que siempre es uno y no hace falta calcular nada
+
+	
+b_cos_fact:							
+	beq t5 t4 fin_cos_fact				#mientras que el contador no sea igual a (2n+1)
+	fmul.s ft6 ft6 ft5					#multiplicamos el factorial por el siguiente numero
+	fadd.s ft5 ft5 ft2					#sumamos uno al contador de la multiplicacion
+    addi t5 t5 1						#sumamos 1 al contador
+	j b_cos_fact						#volvemos a iniciar el bucle
+	
+fin_cos_fact:
+	fmv.s fa0 ft6						#pasamos el resulatdo final de exponente a fa0 para devolverlo
+	jr ra								#acabamos la subrutina factorial
+	
+	
+#calculo de signo
+
+signo_cos:
+
+    li t2 2								#declarmos t2 como 2 para comprobar si es par o impar mediante la division y obteniendo el resto, si es 0 es para y si no impara
+    li t3 1								# y t3 como 1 ya que si es impar se queda asi el resultado
+	bgt t0 t1 bucle_principal_cos		#comprobamos que el contador aun siga siendo menor que el limite del bucle
+	rem t5 t0 t2 						#obtenemos el resto en t5
+	beq t5 x0 fin_signo_cos				#si t5 es 0 se queda t3 como esta sino se cambia
+	li t3 -1							# se cambia t2=-1
+	
+fin_signo_cos:
+	fcvt.s.w fa0 t3						#covertimos t3 a flotante y y lo dejamos en fa0 para retornarlo
+    jr ra								#acabamos la subrutina signo
+    
+tg:
+		
+		addi sp sp -4					#guardamos la direecion de la tangente
+        sw ra 0(sp)						
+        
+        fmv.s ft0 fa0					#movemos el valor de x a ft0 por que fa0 se modifica dentro del seno
+        
+        jal ra sin						#llamamos al seno
+        
+        fmv.s ft8 fa0					#guardamos el resultado del seno en ft8
+        fmv.s fa0 ft0					#recuperamos en fa0 el valor de x
+        
+        jal ra cos						#llamamos al coseno
+        	
+        fmv.s ft9 fa0					#guardamos el resultado del coseno en ft9
+        								#obtenemos 0.001 para calcular el error y si el coseno es 0 que de infinito la tangente
+		li t0 1 						#nominador
+		fcvt.s.w  ft0 t0  				#ft0 = 1.0
+				
+		li t1 1000 						#denominador
+		fcvt.s.w  ft1 t1  				#ft1 = 1000.0
+		li t2 0
+        fcvt.s.w ft7 t2
+        
+		fdiv.s ft0 ft0 ft1				#guardamos en ft0 = 0.001
+        li t0 9999999
+        fcvt.s.w fa0 t0					#si el coseno es 0 delvoveremos un numero muy grande para representar a infinito
+        
+        fabs.s ft10 ft9					#obtenemos el valor absoluto del coseno	
+        fsub.s ft11 ft10 ft0			#restamos coseno - 0.001 y guardamos en ft11
+        fle.s t1 ft11 ft7				#si ft11 < 0 t1=1 sino t1 = 0
+        bne t1 x0 inf					#si t1=1 la tg es inifinito
+        fdiv.s fa0 ft8 ft9				#si t1=0 --> fa0 = sen/cos
+        j fin_tg						#fin tg
+        
+fin_tg:
+        lw ra 0(sp)						#recuperamos la dirreccion de la tangente
+        addi sp sp 4
+        jr ra							#acabamos la funcion
+
+inf:
+	li t2 999							#declaramos el infinito como un numero muy grande nuestro caso 999 ya que cos=0 y no se puede dividir y lo covertimos a float y ya acabamos la tg
+    fcvt.s.w fa0 t2
+    j fin_tg
+        
+        
+E:
+	#parámetros
+	#el error maximo es 0.001., para obtener este termino hacemos 1/1000
+	#error maximo acaptado para acabar el bucle de sumatorio
+	li t0 1 								#nominador
+	fcvt.s.w  ft0 t0  						#ft0 = 1.0
+				
+	li t1 1000 								#denominador
+	fcvt.s.w  ft1 t1  						#ft1 = 1000.0
+				
+	fdiv.s ft0 ft0 ft1 						#error ft0 = 1/1000 = 0.001
+				
+    li t2 0 
+    fcvt.s.w  ft1 t2 						#este sera el resultado actual del sumatorio que se inicializa como 0.  ft1 = resultado_actual
+
+    li t2 1 
+    fcvt.s.w  fa0 t2 						#este sera el resultado final del sumanotorio que se inicializa como 1 . fa0 = sumatorio_total
+
+    li t2 2									#ft2 tendra el resultado anterior, este se guarda para poder hacer la 
+    fcvt.s.w  ft2 t2 					    #diferencia entre el actual y el anterior para comprobar si es menor que el error. 
+                                            # ft2=resultado_anterior. Se inicializa a 2, por que el primer valor es 1 y como en 
+                                            #n=0 el resultado es 0 al restar saldria 0 y ese error es menor a 0.001 por lo que nunca se ejecutaria el bucle
+
+    li t2 1 
+    fcvt.s.w  ft3 t2 						#ft3 = diferencia actual anterior
+
+    li t2 1
+    fcvt.s.w ft4 t2							#ft4 = 1 el numerador en la funcion siempre es 1
+
+    li a0 1 								#a0 = n
+
+#función 
+sumatorio_e: 
+	flt.s t3 ft0 ft3						#si el error < diferencia = 1(t3), error > diferencia = 0(t3) y acaba
+  	beq t3 x0 fin_sumatorio_e				#fin de bucle si t3 = 0
+
+#calculo del factorial
+  	addi sp sp -8             				#guardamos valor n
+ 	sw a0 0(sp)
+    sw ra 4(sp)
+
+  	jal ra factorial 
+	
+    lw ra 4(sp)
+  	lw a0 0(sp)
+  	addi sp sp 8
+
+  	fcvt.s.w ft5 t1  						#ft5 = factorial
+
+#calculo 1/n!
+
+    fdiv.s ft1 ft4 ft5 		   				#ft1 = valor actual
+                               				#en fs0 tenemos nuestro 1 que no va acambiar, y en fs1 tenemos nuestro factorial calculado. fs0/fs1
+
+	fadd.s fa0 fa0 ft1						#valor sumatorio + valor actual
+
+#calulo de la diferencia entre valor actual(ft3) y valor anterior(ft2), hacemos ft2-ft1 
+#ya que ft2 siempre es mayor al ser el anterior y asi aseguramos que la resta de positivo
+
+    fsub.s ft3 ft2 ft1 						#ft3 = diferencia 
+
+    fmv.s ft2 ft1							# ft2 = ft1 se guarda el valor actual en el valor anterio para la siguiente ejecucion del bucle
+
+    addi a0 a0 1 							#n = n + 1 incremento de n 
+
+    j sumatorio_e
+
+fin_sumatorio_e:  
+	jr ra
+factorial:
+#necesitamos en valor de n guardado en a0 para calcular su factorial
+
+    li t1 1  								#guardamos valor del factorial inicializado a 1
+
+buc_factorial: 
+	beq a0 x0 fin_factorial       			#bucle calculo factorial
+    mul t1 t1 a0         	 				#restamos 1 a la n hasta llegara 0 para saber cuando parar 
+    addi a0 a0 -1  		 					#saltamos a la rutina fin_factorial y volvermos a e
+    j buc_factorial		 					#resulatdo factorial guardado en t1
+
+fin_factorial: 
+	jr ra
